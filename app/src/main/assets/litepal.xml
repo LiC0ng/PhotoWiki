@@ -1,0 +1,11 @@
+<litepal>
+
+    <dbname value="wiki" />
+
+    <version value="1" />
+
+    <list>
+        <mapping class="jp.ac.titech.sdl.photowiki.db.Wiki" />
+    </list>
+
+</litepal>
