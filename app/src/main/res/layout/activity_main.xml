@@ -28,12 +28,20 @@
 
         </ScrollView>
 
-        <TextView
-            android:layout_width="400dp"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="start"
-            android:text="text"
-            android:background="#FFF"/>
+            android:fitsSystemWindows="true"
+            android:background="@color/colorButtonText"
+            android:orientation="vertical">
+
+            <ListView
+                android:id="@+id/wikiList"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"></ListView>
+
+        </LinearLayout>
 
     </android.support.v4.widget.DrawerLayout>
 

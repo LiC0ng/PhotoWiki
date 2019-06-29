@@ -5,9 +5,7 @@
     <version value="1" />
 
     <list>
-        <mapping class="jp.ac.titech.sdl.photowiki.db.Page" />
-        <mapping class="jp.ac.titech.sdl.photowiki.db.Root" />
-        <mapping class="jp.ac.titech.sdl.photowiki.db.Query" />
+        <mapping class="jp.ac.titech.sdl.photowiki.db.Wiki" />
     </list>
 
 </litepal>

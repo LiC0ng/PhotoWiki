@@ -3,6 +3,7 @@ package jp.ac.titech.sdl.photowiki;
 import android.Manifest;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
@@ -19,6 +20,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -39,6 +41,8 @@ import com.google.api.services.vision.v1.model.Feature;
 import com.google.api.services.vision.v1.model.Image;
 import com.google.gson.Gson;
 
+import org.litepal.crud.DataSupport;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -53,6 +57,7 @@ import java.util.List;
 
 import jp.ac.titech.sdl.photowiki.db.Page;
 import jp.ac.titech.sdl.photowiki.db.Root;
+import jp.ac.titech.sdl.photowiki.db.Wiki;
 
 public class MainActivity extends AppCompatActivity {
     private static final String CLOUD_VISION_API_KEY = "AIzaSyBj18PLdUDQzFzLudKl0a2bl3lctD8C1-4";
@@ -72,8 +77,15 @@ public class MainActivity extends AppCompatActivity {
     private TextView wikiContent;
     private TextView contentTitle;
     private Button getWiki;
+    private Button saveWiki;
+    private Button translate;
     private Spinner spinner;
     private View line;
+    private ListView wikiList;
+
+    private byte[] imageBytes;
+    private String content;
+    private String title;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,8 +95,13 @@ public class MainActivity extends AppCompatActivity {
         wikiContent = findViewById(R.id.wikiContent);
         contentTitle = findViewById(R.id.contentTitle);
         getWiki = findViewById(R.id.getWiki);
+        saveWiki = findViewById(R.id.saveWiki);
+        translate = findViewById(R.id.translate);
         spinner = findViewById(R.id.spanner);
         line = findViewById(R.id.line);
+        wikiList = findViewById(R.id.wikiList);
+
+        setWikiList();
 
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> {
@@ -94,6 +111,20 @@ public class MainActivity extends AppCompatActivity {
                     .setPositiveButton(R.string.dialog_select_gallery, (dialog, which) -> startGalleryChooser())
                     .setNegativeButton(R.string.dialog_select_camera, (dialog, which) -> startCamera());
             builder.create().show();
+        });
+
+        saveWiki.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                saveWiki();
+            }
+        });
+
+        translate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                testdb();
+            }
         });
     }
 
@@ -110,12 +141,11 @@ public class MainActivity extends AppCompatActivity {
                     Log.d("HTTP", str);
                     Root root = new Gson().fromJson(str, Root.class);
                     for (final Page page : root.getQuery().getPages().values()) {
-                        System.out.println(page.getTitle());
-                        System.out.println("  " + page.getExtract());
+                        content = page.getExtract();
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                wikiContent.setText(page.getExtract());
+                                wikiContent.setText(content);
                             }
                         });
                     }
@@ -259,7 +289,7 @@ public class MainActivity extends AppCompatActivity {
             // Just in case it's a format that Android understands but Cloud Vision
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream);
-            byte[] imageBytes = byteArrayOutputStream.toByteArray();
+            imageBytes = byteArrayOutputStream.toByteArray();
 
             // Base64 encode the JPEG
             base64EncodedImage.encodeContent(imageBytes);
@@ -327,10 +357,12 @@ public class MainActivity extends AppCompatActivity {
                         getWiki.setOnClickListener(new View.OnClickListener() {
                             @Override
                             public void onClick(View view) {
-                                String title = (String)adapterView.getItemAtPosition(i);
+                                title = (String)adapterView.getItemAtPosition(i);
                                 contentTitle.setText(title);
                                 line.setVisibility(View.VISIBLE);
                                 onButtonGet(title);
+                                saveWiki.setVisibility(View.VISIBLE);
+                                translate.setVisibility(View.VISIBLE);
                             }
                         });
                     }
@@ -388,5 +420,50 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return data_list;
+    }
+
+    public Boolean saveWiki(){
+        Wiki wiki = new Wiki();
+        if(title != null & content != null & imageBytes != null){
+            wiki.setTitle(title);
+            wiki.setContent(content);
+            wiki.setImage(imageBytes);
+            wiki.setCreate_time(System.currentTimeMillis());
+            wiki.save();
+            setWikiList();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public void testdb() {
+        List<Wiki> wikis = DataSupport.findAll(Wiki.class);
+        for(Wiki wiki : wikis) {
+            Log.d("HTTP", wiki.getTitle());
+            Log.d("HTTP", wiki.getContent());
+        }
+    }
+    public void setWikiList() {
+        List<Wiki> wikis = DataSupport.select("title").find(Wiki.class);
+        List<String> data = new ArrayList<>();
+        for(Wiki wiki : wikis) {
+            data.add(wiki.getTitle());
+        }
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_list_item_1, data);
+        wikiList.setAdapter(arrayAdapter);
+        wikiList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                String titleOfList = (String)adapterView.getItemAtPosition(i);
+                List<Wiki> wikis= DataSupport.where("title = ?", titleOfList).find(Wiki.class);
+                for(Wiki wiki : wikis) {
+                    image.setImageBitmap(BitmapFactory.decodeByteArray(wiki.getImage(), 0, wiki.getImage().length));
+                    contentTitle.setText(wiki.getTitle());
+                    line.setVisibility(View.VISIBLE);
+                    wikiContent.setText(wiki.getContent());
+                }
+            }
+        });
     }
 }
