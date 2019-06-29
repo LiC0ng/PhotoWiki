@@ -15,6 +15,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -49,7 +50,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import jp.ac.titech.sdl.photowiki.db.Page;
 import jp.ac.titech.sdl.photowiki.db.Root;
@@ -71,6 +71,8 @@ public class MainActivity extends AppCompatActivity {
     private ImageView image;
     private TextView wikiContent;
     private Button getWiki;
+    private Button translate;
+    private Spinner spinner;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,13 +81,8 @@ public class MainActivity extends AppCompatActivity {
         image = findViewById(R.id.image);
         wikiContent = findViewById(R.id.wikiContent);
         getWiki = findViewById(R.id.getWiki);
-
-        getWiki.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                onButtonGet();
-            }
-        });
+        translate = findViewById(R.id.translate);
+        spinner = findViewById(R.id.spanner);
 
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> {
@@ -98,12 +95,12 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    public void onButtonGet() {
+    public void onButtonGet(String title) {
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    URL url = new URL("https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&titles=Stack%20Overflow");
+                    URL url = new URL("https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&titles=" + title);
                     // 処理開始時刻
                     HttpURLConnection con = (HttpURLConnection)url.openConnection();
                     final String str = InputStreamToString(con.getInputStream());
@@ -287,7 +284,7 @@ public class MainActivity extends AppCompatActivity {
         return annotateRequest;
     }
 
-    private static class LableDetectionTask extends AsyncTask<Object, Void, List<String>> {
+    private class LableDetectionTask extends AsyncTask<Object, Void, List<String>> {
         private final WeakReference<MainActivity> mActivityWeakReference;
         private Vision.Images.Annotate mRequest;
 
@@ -318,25 +315,31 @@ public class MainActivity extends AppCompatActivity {
             MainActivity activity = mActivityWeakReference.get();
 
             if (activity != null && !activity.isFinishing()) {
-                Spinner spinner = activity.findViewById(R.id.spanner);
                 ArrayAdapter<String> arr_adapter;
-                arr_adapter= new ArrayAdapter<String>(activity, android.R.layout.simple_spinner_item, result);
-                //设置样式
+                arr_adapter= new ArrayAdapter<>(activity, android.R.layout.simple_spinner_item, result);
                 arr_adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                //加载适配器
                 spinner.setAdapter(arr_adapter);
+                spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                        getWiki.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                String title = (String)adapterView.getItemAtPosition(i);
+                                onButtonGet(title);
+                            }
+                        });
+                    }
 
-
-                //TextView imageDetail = activity.findViewById(R.id.image_details);
-                //imageDetail.setText(result);
+                    @Override
+                    public void onNothingSelected(AdapterView<?> adapterView) {
+                    }
+                });
             }
         }
     }
 
     private void callCloudVision(final Bitmap bitmap) {
-        // Switch text to loading
-        //mImageDetails.setText(R.string.loading_message);
-
         // Do the real work in an async task, because we need to use the network anyway
         try {
             AsyncTask<Object, Void, List<String>> labelDetectionTask = new LableDetectionTask(this, prepareAnnotationRequest(bitmap));
@@ -376,11 +379,8 @@ public class MainActivity extends AppCompatActivity {
             for (EntityAnnotation label : labels) {
                 data_list.add(label.getDescription());
                 Log.d("HTTP", label.getDescription());
-                message.append(String.format(Locale.US, "%.3f: %s", label.getScore(), label.getDescription()));
-                message.append("\n");
             }
         } else {
-            message.append("nothing");
         }
 
         return data_list;
