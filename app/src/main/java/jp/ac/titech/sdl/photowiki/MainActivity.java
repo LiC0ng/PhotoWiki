@@ -70,9 +70,10 @@ public class MainActivity extends AppCompatActivity {
 
     private ImageView image;
     private TextView wikiContent;
+    private TextView contentTitle;
     private Button getWiki;
-    private Button translate;
     private Spinner spinner;
+    private View line;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,9 +81,10 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         image = findViewById(R.id.image);
         wikiContent = findViewById(R.id.wikiContent);
+        contentTitle = findViewById(R.id.contentTitle);
         getWiki = findViewById(R.id.getWiki);
-        translate = findViewById(R.id.translate);
         spinner = findViewById(R.id.spanner);
+        line = findViewById(R.id.line);
 
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> {
@@ -316,7 +318,7 @@ public class MainActivity extends AppCompatActivity {
 
             if (activity != null && !activity.isFinishing()) {
                 ArrayAdapter<String> arr_adapter;
-                arr_adapter= new ArrayAdapter<>(activity, android.R.layout.simple_spinner_item, result);
+                arr_adapter= new ArrayAdapter<>(activity, R.layout.spinner_item, result);
                 arr_adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                 spinner.setAdapter(arr_adapter);
                 spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -326,6 +328,8 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onClick(View view) {
                                 String title = (String)adapterView.getItemAtPosition(i);
+                                contentTitle.setText(title);
+                                line.setVisibility(View.VISIBLE);
                                 onButtonGet(title);
                             }
                         });
