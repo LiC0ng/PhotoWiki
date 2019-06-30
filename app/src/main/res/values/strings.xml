@@ -4,6 +4,11 @@
     <string name="dialog_select_prompt">Choose a picture</string>
     <string name="dialog_select_camera">Camera</string>
     <string name="dialog_select_gallery">Gallery</string>
+    <string name="delete_wiki">DELETE</string>
+    <string name="save_wiki">SAVE</string>
+    <string name="image">Image</string>
+    <string name="get_wiki">Get Wiki</string>
+    <string name="translate">Translate</string>
 
     <string name="image_picker_error">Something is wrong with that image. Pick a different one please.</string>
 </resources>

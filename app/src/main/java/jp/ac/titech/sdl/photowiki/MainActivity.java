@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
@@ -15,6 +16,10 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Html;
+import android.text.SpannableString;
+import android.text.method.LinkMovementMethod;
+import android.text.style.URLSpan;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -78,6 +83,8 @@ public class MainActivity extends AppCompatActivity {
     private ImageView image;
     private TextView wikiContent;
     private TextView contentTitle;
+    private TextView totalWiki;
+    private TextView wikiUrl;
     private Button getWiki;
     private Button saveWiki;
     private Button translate;
@@ -86,9 +93,7 @@ public class MainActivity extends AppCompatActivity {
     private ListView wikiList;
     private DrawerLayout drawerLayout;
 
-    private byte[] imageBytes;
-    private String content;
-    private String title;
+    private Wiki wiki = new Wiki();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,6 +101,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         image = findViewById(R.id.image);
         wikiContent = findViewById(R.id.wikiContent);
+        wikiUrl = findViewById(R.id.url);
+        totalWiki = findViewById(R.id.totalWiki);
         contentTitle = findViewById(R.id.contentTitle);
         getWiki = findViewById(R.id.getWiki);
         saveWiki = findViewById(R.id.saveWiki);
@@ -117,51 +124,37 @@ public class MainActivity extends AppCompatActivity {
             builder.create().show();
         });
 
-        saveWiki.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if(saveWiki.getText().toString().equals("SAVE")){
-                    saveWiki();
-                } else {
-                    deleteWiki();
-                }
-                checkButtonStatus();
+        saveWiki.setOnClickListener( view -> {
+            if(saveWiki.getText().toString().equals("SAVE")){
+                saveWiki(wiki);
+            } else {
+                deleteWiki(wiki);
             }
+            checkButtonStatus();
         });
 
-        translate.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                test();
-            }
-        });
-        checkBundle(savedInstanceState);
+        translate.setOnClickListener(view -> test());
     }
 
     public void onButtonGet(String title) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    URL url = new URL("https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&titles=" + title);
-                    // 処理開始時刻
-                    HttpURLConnection con = (HttpURLConnection)url.openConnection();
-                    final String str = InputStreamToString(con.getInputStream());
-                    // 処理終了時刻
-                    Log.d("HTTP", str);
-                    Root root = new Gson().fromJson(str, Root.class);
-                    for (final Page page : root.getQuery().getPages().values()) {
-                        content = page.getExtract();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                wikiContent.setText(content);
-                            }
-                        });
-                    }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&titles=" + title);
+                // 処理開始時刻
+                HttpURLConnection con = (HttpURLConnection)url.openConnection();
+                final String str = InputStreamToString(con.getInputStream());
+                // 処理終了時刻
+                Log.d("HTTP", str);
+                Root root = new Gson().fromJson(str, Root.class);
+                for (final Page page : root.getQuery().getPages().values()) {
+                    wiki.setTitle(page.getTitle());
+                    wiki.setContent(page.getExtract());
+                    runOnUiThread(() -> {
+                        wikiContent.setText(wiki.getContent());
+                        setWikiUrl();});
                 }
+            } catch (Exception ex) {
+                ex.printStackTrace();
             }
         }).start();
     }
@@ -242,9 +235,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 // scale the image to save on bandwidth
                 Bitmap bitmap =
-                        scaleBitmapDown(
-                                MediaStore.Images.Media.getBitmap(getContentResolver(), uri),
-                                MAX_DIMENSION);
+                        scaleBitmapDown(MediaStore.Images.Media.getBitmap(getContentResolver(), uri));
 
                 callCloudVision(bitmap);
                 image.setImageBitmap(bitmap);
@@ -299,10 +290,10 @@ public class MainActivity extends AppCompatActivity {
             // Just in case it's a format that Android understands but Cloud Vision
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream);
-            imageBytes = byteArrayOutputStream.toByteArray();
+            wiki.setImage(byteArrayOutputStream.toByteArray());
 
             // Base64 encode the JPEG
-            base64EncodedImage.encodeContent(imageBytes);
+            base64EncodedImage.encodeContent(wiki.getImage());
             annotateImageRequest.setImage(base64EncodedImage);
 
             // add the features we want
@@ -364,17 +355,14 @@ public class MainActivity extends AppCompatActivity {
                 spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                     @Override
                     public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-                        getWiki.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                title = (String)adapterView.getItemAtPosition(i);
-                                contentTitle.setText(title);
-                                line.setVisibility(View.VISIBLE);
-                                checkButtonStatus();
-                                onButtonGet(title);
-                                saveWiki.setVisibility(View.VISIBLE);
-                                translate.setVisibility(View.VISIBLE);
-                            }
+                        getWiki.setOnClickListener(view1 -> {
+                            wiki.setTitle((String)adapterView.getItemAtPosition(i));
+                            contentTitle.setText(wiki.getTitle());
+                            line.setVisibility(View.VISIBLE);
+                            checkButtonStatus();
+                            onButtonGet(wiki.getTitle());
+                            saveWiki.setVisibility(View.VISIBLE);
+                            translate.setVisibility(View.VISIBLE);
                         });
                     }
 
@@ -397,22 +385,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private Bitmap scaleBitmapDown(Bitmap bitmap, int maxDimension) {
+    private Bitmap scaleBitmapDown(Bitmap bitmap) {
 
         int originalWidth = bitmap.getWidth();
         int originalHeight = bitmap.getHeight();
-        int resizedWidth = maxDimension;
-        int resizedHeight = maxDimension;
+        int resizedWidth = MAX_DIMENSION;
+        int resizedHeight = MAX_DIMENSION;
 
         if (originalHeight > originalWidth) {
-            resizedHeight = maxDimension;
             resizedWidth = (int) (resizedHeight * (float) originalWidth / (float) originalHeight);
         } else if (originalWidth > originalHeight) {
-            resizedWidth = maxDimension;
             resizedHeight = (int) (resizedWidth * (float) originalHeight / (float) originalWidth);
-        } else if (originalHeight == originalWidth) {
-            resizedHeight = maxDimension;
-            resizedWidth = maxDimension;
         }
         return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, false);
     }
@@ -423,107 +406,108 @@ public class MainActivity extends AppCompatActivity {
         if (labels != null) {
             for (EntityAnnotation label : labels) {
                 data_list.add(label.getDescription());
-                Log.d("HTTP", label.getDescription());
             }
-        } else {
         }
 
         return data_list;
     }
 
-    public Boolean saveWiki(){
-        Wiki wiki = new Wiki();
-        if(title != null & content != null & imageBytes != null){
-            if(DataSupport.isExist(Wiki.class, "title = ?", title)){
-                wiki.setContent(content);
-                wiki.setImage(imageBytes);
-                wiki.setCreate_time(System.currentTimeMillis());
-                wiki.updateAll("title = ?", title);
-                setWikiList();
-            } else {
-                wiki.setTitle(title);
-                wiki.setContent(content);
-                wiki.setImage(imageBytes);
-                wiki.setCreate_time(System.currentTimeMillis());
-                wiki.save();
-                setWikiList();
-            }
-            return true;
-        } else {
-            return false;
+    public void saveWiki(Wiki saveWiki){
+        Log.d("HTTP", saveWiki.getTitle() + "   1");
+        if(saveWiki.getTitle() != null & saveWiki.getContent() != null & saveWiki.getImage() != null){
+            Wiki wiki = new Wiki();
+            wiki.setTitle(saveWiki.getTitle());
+            wiki.setContent(saveWiki.getContent());
+            wiki.setImage(saveWiki.getImage());
+            wiki.setCreate_time(System.currentTimeMillis());
+            wiki.save();
+            setWikiList();
         }
     }
 
-    public void deleteWiki() {
-        DataSupport.deleteAll(Wiki.class, "title = ?", title);
+    public void deleteWiki(Wiki wiki) {
+        DataSupport.deleteAll(Wiki.class, "title = ?", wiki.getTitle());
         setWikiList();
     }
 
     public void setWikiList() {
-        List<Wiki> wikis = DataSupport.select("title").find(Wiki.class);
+        drawerLayout.setScrimColor(Color.TRANSPARENT);
+        String count = "total:" + DataSupport.count(Wiki.class);
+        totalWiki.setText(count);
+        List<Wiki> wikiArray = DataSupport.select("title").find(Wiki.class);
         List<String> data = new ArrayList<>();
-        for(Wiki wiki : wikis) {
-            data.add(wiki.getTitle());
+        for(Wiki myWiki : wikiArray) {
+            data.add(myWiki.getTitle());
         }
         ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_list_item_1, data);
         wikiList.setAdapter(arrayAdapter);
-        wikiList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+        wikiList.setOnItemClickListener((adapterView, view, i, l) ->  {
                 String titleOfList = (String)adapterView.getItemAtPosition(i);
-                List<Wiki> wikis= DataSupport.where("title = ?", titleOfList).find(Wiki.class);
-                for(Wiki wiki : wikis) {
-                    drawerLayout.closeDrawer(Gravity.LEFT);
-                    imageBytes = wiki.getImage();
-                    image.setImageBitmap(BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length));
-                    title = wiki.getTitle();
-                    contentTitle.setText(title);
+                wiki.setTitle(titleOfList);
+                List<Wiki> myWikiArray= DataSupport.where("title = ?", titleOfList).find(Wiki.class);
+                for(Wiki myWiki : myWikiArray) {
+                    wiki = myWiki;
+                    Log.d("HTTP", "set");
+                    drawerLayout.closeDrawer(Gravity.START);
+                    image.setImageBitmap(BitmapFactory.decodeByteArray(wiki.getImage(), 0, wiki.getImage().length));
+                    contentTitle.setText(wiki.getTitle());
                     checkButtonStatus();
                     line.setVisibility(View.VISIBLE);
-                    content = wiki.getContent();
-                    wikiContent.setText(content);
+                    wikiContent.setText(wiki.getContent());
+                    setWikiUrl();
                     saveWiki.setVisibility(View.VISIBLE);
                     translate.setVisibility(View.VISIBLE);
                 }
-            }
         });
     }
 
     public void checkButtonStatus()
     {
-        if(DataSupport.isExist(Wiki.class, "title = ?", title)){
-            saveWiki.setText("DELETE");
+        if(DataSupport.isExist(Wiki.class, "title = ?", wiki.getTitle())){
+            saveWiki.setText(R.string.delete_wiki);
             saveWiki.setBackgroundResource(R.drawable.button_shape_red);
         } else {
-            saveWiki.setText("SAVE");
+            saveWiki.setText(R.string.save_wiki);
             saveWiki.setBackgroundResource(R.drawable.button_shape);
         }
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        if(title != null & content != null & imageBytes!=null) {
-            outState.putByteArray("imageBytes", imageBytes);
-            Log.d("HTTP", imageBytes.toString());
-            outState.putString("title", title);
-            outState.putString("content", content);
+        if(wiki.getTitle() != null && wiki.getContent() != null && wiki.getImage()!=null) {
+            Log.d("HTTP", "1");
+            outState.putByteArray("imageBytes", wiki.getImage());
+            outState.putString("title", wiki.getTitle());
+            outState.putString("content", wiki.getContent());
+        } else {
+            outState.putString("title", " ");
         }
+        super.onSaveInstanceState(outState);
     }
 
-    public void checkBundle(Bundle savedInstanceState) {
-        if(savedInstanceState != null) {
-            imageBytes = savedInstanceState.getByteArray("imageBytes");
-            title = savedInstanceState.getString("title");
-            content = savedInstanceState.getString("content");
-            contentTitle.setText(title);
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        if(!savedInstanceState.getString("title").equals(" ")) {
+            Log.d("HTTP", "2");
+            wiki.setImage(savedInstanceState.getByteArray("imageBytes"));
+            wiki.setTitle(savedInstanceState.getString("title"));
+            wiki.setContent(savedInstanceState.getString("content"));
+            contentTitle.setText(wiki.getTitle());
             line.setVisibility(View.VISIBLE);
-            image.setImageBitmap(BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length));
-            wikiContent.setText(content);
+            image.setImageBitmap(BitmapFactory.decodeByteArray(wiki.getImage(), 0, wiki.getImage().length));
+            wikiContent.setText(wiki.getContent());
+            setWikiUrl();
             checkButtonStatus();
             saveWiki.setVisibility(View.VISIBLE);
             translate.setVisibility(View.VISIBLE);
         }
+    }
+
+    public void setWikiUrl() {
+        String url = "<a href=\"http://blog.csdn.net/zhangjinhuang\">我的CSDN博客</a>";
+        wikiUrl.setText(Html.fromHtml(url));
+        wikiUrl.setMovementMethod(LinkMovementMethod.getInstance());
     }
 
     public void test() {
