@@ -11,10 +11,12 @@ import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.content.FileProvider;
+import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -82,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
     private Spinner spinner;
     private View line;
     private ListView wikiList;
+    private DrawerLayout drawerLayout;
 
     private byte[] imageBytes;
     private String content;
@@ -100,6 +103,7 @@ public class MainActivity extends AppCompatActivity {
         spinner = findViewById(R.id.spanner);
         line = findViewById(R.id.line);
         wikiList = findViewById(R.id.wikiList);
+        drawerLayout = findViewById(R.id.drawer_layout);
 
         setWikiList();
 
@@ -116,16 +120,22 @@ public class MainActivity extends AppCompatActivity {
         saveWiki.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                saveWiki();
+                if(saveWiki.getText().toString().equals("SAVE")){
+                    saveWiki();
+                } else {
+                    deleteWiki();
+                }
+                checkButtonStatus();
             }
         });
 
         translate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                testdb();
+                test();
             }
         });
+        checkBundle(savedInstanceState);
     }
 
     public void onButtonGet(String title) {
@@ -360,6 +370,7 @@ public class MainActivity extends AppCompatActivity {
                                 title = (String)adapterView.getItemAtPosition(i);
                                 contentTitle.setText(title);
                                 line.setVisibility(View.VISIBLE);
+                                checkButtonStatus();
                                 onButtonGet(title);
                                 saveWiki.setVisibility(View.VISIBLE);
                                 translate.setVisibility(View.VISIBLE);
@@ -407,8 +418,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private static List<String> convertResponseToString(BatchAnnotateImagesResponse response) {
-        StringBuilder message = new StringBuilder("I found these things:\n\n");
-
         List<EntityAnnotation> labels = response.getResponses().get(0).getLabelAnnotations();
         List<String> data_list = new ArrayList<>();
         if (labels != null) {
@@ -425,25 +434,31 @@ public class MainActivity extends AppCompatActivity {
     public Boolean saveWiki(){
         Wiki wiki = new Wiki();
         if(title != null & content != null & imageBytes != null){
-            wiki.setTitle(title);
-            wiki.setContent(content);
-            wiki.setImage(imageBytes);
-            wiki.setCreate_time(System.currentTimeMillis());
-            wiki.save();
-            setWikiList();
+            if(DataSupport.isExist(Wiki.class, "title = ?", title)){
+                wiki.setContent(content);
+                wiki.setImage(imageBytes);
+                wiki.setCreate_time(System.currentTimeMillis());
+                wiki.updateAll("title = ?", title);
+                setWikiList();
+            } else {
+                wiki.setTitle(title);
+                wiki.setContent(content);
+                wiki.setImage(imageBytes);
+                wiki.setCreate_time(System.currentTimeMillis());
+                wiki.save();
+                setWikiList();
+            }
             return true;
         } else {
             return false;
         }
     }
 
-    public void testdb() {
-        List<Wiki> wikis = DataSupport.findAll(Wiki.class);
-        for(Wiki wiki : wikis) {
-            Log.d("HTTP", wiki.getTitle());
-            Log.d("HTTP", wiki.getContent());
-        }
+    public void deleteWiki() {
+        DataSupport.deleteAll(Wiki.class, "title = ?", title);
+        setWikiList();
     }
+
     public void setWikiList() {
         List<Wiki> wikis = DataSupport.select("title").find(Wiki.class);
         List<String> data = new ArrayList<>();
@@ -458,12 +473,60 @@ public class MainActivity extends AppCompatActivity {
                 String titleOfList = (String)adapterView.getItemAtPosition(i);
                 List<Wiki> wikis= DataSupport.where("title = ?", titleOfList).find(Wiki.class);
                 for(Wiki wiki : wikis) {
-                    image.setImageBitmap(BitmapFactory.decodeByteArray(wiki.getImage(), 0, wiki.getImage().length));
-                    contentTitle.setText(wiki.getTitle());
+                    drawerLayout.closeDrawer(Gravity.LEFT);
+                    imageBytes = wiki.getImage();
+                    image.setImageBitmap(BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length));
+                    title = wiki.getTitle();
+                    contentTitle.setText(title);
+                    checkButtonStatus();
                     line.setVisibility(View.VISIBLE);
-                    wikiContent.setText(wiki.getContent());
+                    content = wiki.getContent();
+                    wikiContent.setText(content);
+                    saveWiki.setVisibility(View.VISIBLE);
+                    translate.setVisibility(View.VISIBLE);
                 }
             }
         });
     }
+
+    public void checkButtonStatus()
+    {
+        if(DataSupport.isExist(Wiki.class, "title = ?", title)){
+            saveWiki.setText("DELETE");
+            saveWiki.setBackgroundResource(R.drawable.button_shape_red);
+        } else {
+            saveWiki.setText("SAVE");
+            saveWiki.setBackgroundResource(R.drawable.button_shape);
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if(title != null & content != null & imageBytes!=null) {
+            outState.putByteArray("imageBytes", imageBytes);
+            Log.d("HTTP", imageBytes.toString());
+            outState.putString("title", title);
+            outState.putString("content", content);
+        }
+    }
+
+    public void checkBundle(Bundle savedInstanceState) {
+        if(savedInstanceState != null) {
+            imageBytes = savedInstanceState.getByteArray("imageBytes");
+            title = savedInstanceState.getString("title");
+            content = savedInstanceState.getString("content");
+            contentTitle.setText(title);
+            line.setVisibility(View.VISIBLE);
+            image.setImageBitmap(BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length));
+            wikiContent.setText(content);
+            checkButtonStatus();
+            saveWiki.setVisibility(View.VISIBLE);
+            translate.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void test() {
+    }
+
 }
