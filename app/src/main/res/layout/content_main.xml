@@ -76,8 +76,7 @@
         android:textSize="25sp"
         android:layout_marginTop="15dp"
         android:paddingLeft="5dp"
-        android:paddingRight="5dp"
-        android:autoLink="all" />
+        android:paddingRight="5dp" />
 
     <LinearLayout
         android:layout_width="match_parent"

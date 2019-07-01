@@ -20,6 +20,7 @@ import android.text.Html;
 import android.text.SpannableString;
 import android.text.method.LinkMovementMethod;
 import android.text.style.URLSpan;
+import android.text.util.Linkify;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -505,9 +506,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void setWikiUrl() {
-        String url = "<a href=\"http://blog.csdn.net/zhangjinhuang\">我的CSDN博客</a>";
-        wikiUrl.setText(Html.fromHtml(url));
+        String value = "<a href=\"https://en.m.wikipedia.org/wiki/" + wiki.getTitle() +"\">もっと知りたい</a>";
+        wikiUrl.setText(Html.fromHtml(value));
         wikiUrl.setMovementMethod(LinkMovementMethod.getInstance());
+
     }
 
     public void test() {
