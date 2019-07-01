@@ -17,10 +17,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Html;
-import android.text.SpannableString;
 import android.text.method.LinkMovementMethod;
-import android.text.style.URLSpan;
-import android.text.util.Linkify;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -88,7 +85,6 @@ public class MainActivity extends AppCompatActivity {
     private TextView wikiUrl;
     private Button getWiki;
     private Button saveWiki;
-    private Button translate;
     private Spinner spinner;
     private View line;
     private ListView wikiList;
@@ -107,7 +103,6 @@ public class MainActivity extends AppCompatActivity {
         contentTitle = findViewById(R.id.contentTitle);
         getWiki = findViewById(R.id.getWiki);
         saveWiki = findViewById(R.id.saveWiki);
-        translate = findViewById(R.id.translate);
         spinner = findViewById(R.id.spanner);
         line = findViewById(R.id.line);
         wikiList = findViewById(R.id.wikiList);
@@ -133,8 +128,6 @@ public class MainActivity extends AppCompatActivity {
             }
             checkButtonStatus();
         });
-
-        translate.setOnClickListener(view -> test());
     }
 
     public void onButtonGet(String title) {
@@ -347,31 +340,7 @@ public class MainActivity extends AppCompatActivity {
 
         protected void onPostExecute(List<String> result) {
             MainActivity activity = mActivityWeakReference.get();
-
-            if (activity != null && !activity.isFinishing()) {
-                ArrayAdapter<String> arr_adapter;
-                arr_adapter= new ArrayAdapter<>(activity, R.layout.spinner_item, result);
-                arr_adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                spinner.setAdapter(arr_adapter);
-                spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                    @Override
-                    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-                        getWiki.setOnClickListener(view1 -> {
-                            wiki.setTitle((String)adapterView.getItemAtPosition(i));
-                            contentTitle.setText(wiki.getTitle());
-                            line.setVisibility(View.VISIBLE);
-                            checkButtonStatus();
-                            onButtonGet(wiki.getTitle());
-                            saveWiki.setVisibility(View.VISIBLE);
-                            translate.setVisibility(View.VISIBLE);
-                        });
-                    }
-
-                    @Override
-                    public void onNothingSelected(AdapterView<?> adapterView) {
-                    }
-                });
-            }
+            setSpinner(result);
         }
     }
 
@@ -445,6 +414,8 @@ public class MainActivity extends AppCompatActivity {
         wikiList.setOnItemClickListener((adapterView, view, i, l) ->  {
                 String titleOfList = (String)adapterView.getItemAtPosition(i);
                 wiki.setTitle(titleOfList);
+                List<String> spinnerData = new ArrayList<>();
+                setSpinner(spinnerData);
                 List<Wiki> myWikiArray= DataSupport.where("title = ?", titleOfList).find(Wiki.class);
                 for(Wiki myWiki : myWikiArray) {
                     wiki = myWiki;
@@ -457,7 +428,6 @@ public class MainActivity extends AppCompatActivity {
                     wikiContent.setText(wiki.getContent());
                     setWikiUrl();
                     saveWiki.setVisibility(View.VISIBLE);
-                    translate.setVisibility(View.VISIBLE);
                 }
         });
     }
@@ -501,12 +471,38 @@ public class MainActivity extends AppCompatActivity {
             setWikiUrl();
             checkButtonStatus();
             saveWiki.setVisibility(View.VISIBLE);
-            translate.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void setSpinner(List<String> result) {
+        MainActivity activity = MainActivity.this;
+        if (activity != null && !activity.isFinishing()) {
+            ArrayAdapter<String> arr_adapter;
+            arr_adapter= new ArrayAdapter<>(activity, R.layout.spinner_item, result);
+            arr_adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinner.setAdapter(arr_adapter);
+            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                    getWiki.setOnClickListener(view1 -> {
+                        wiki.setTitle((String)adapterView.getItemAtPosition(i));
+                        contentTitle.setText(wiki.getTitle());
+                        line.setVisibility(View.VISIBLE);
+                        checkButtonStatus();
+                        onButtonGet(wiki.getTitle());
+                        saveWiki.setVisibility(View.VISIBLE);
+                    });
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> adapterView) {
+                }
+            });
         }
     }
 
     public void setWikiUrl() {
-        String value = "<a href=\"https://en.m.wikipedia.org/wiki/" + wiki.getTitle() +"\">もっと知りたい</a>";
+        String value = "<a href=\"https://en.m.wikipedia.org/wiki/" + wiki.getTitle() +"\">More Details...</a>";
         wikiUrl.setText(Html.fromHtml(value));
         wikiUrl.setMovementMethod(LinkMovementMethod.getInstance());
 

@@ -98,18 +98,6 @@
             android:visibility="invisible"
             style="?android:attr/buttonBarButtonStyle"/>
 
-        <Button
-            android:id="@+id/translate"
-            android:text="@string/translate"
-            android:layout_width="100dp"
-            android:layout_height="wrap_content"
-            android:textColor="@color/colorButtonText"
-            android:background="@drawable/button_shape"
-            android:textSize="15sp"
-            android:layout_marginLeft="40dp"
-            android:layout_marginStart="40dp"
-            android:visibility="invisible"
-            style="?android:attr/buttonBarButtonStyle"/>
 
     </LinearLayout>
 
