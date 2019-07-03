@@ -26,6 +26,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -89,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
     private View line;
     private ListView wikiList;
     private DrawerLayout drawerLayout;
+    private ScrollView scrollView;
 
     private Wiki wiki = new Wiki();
 
@@ -107,6 +109,7 @@ public class MainActivity extends AppCompatActivity {
         line = findViewById(R.id.line);
         wikiList = findViewById(R.id.wikiList);
         drawerLayout = findViewById(R.id.drawer_layout);
+        scrollView = findViewById(R.id.scroll_layout);
 
         setWikiList();
 
@@ -130,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    //Get wiki information
     public void onButtonGet(String title) {
         new Thread(() -> {
             try {
@@ -250,10 +254,7 @@ public class MainActivity extends AppCompatActivity {
 
         VisionRequestInitializer requestInitializer =
                 new VisionRequestInitializer(CLOUD_VISION_API_KEY) {
-                    /**
-                     * We override this so we can inject important identifying fields into the HTTP
-                     * headers. This enables use of a restricted cloud platform API key.
-                     */
+
                     @Override
                     protected void initializeVisionRequest(VisionRequest<?> visionRequest)
                             throws IOException {
@@ -290,7 +291,7 @@ public class MainActivity extends AppCompatActivity {
             base64EncodedImage.encodeContent(wiki.getImage());
             annotateImageRequest.setImage(base64EncodedImage);
 
-            // add the features we want
+            // add the features you want
             annotateImageRequest.setFeatures(new ArrayList<Feature>() {{
                 Feature labelDetection = new Feature();
                 labelDetection.setType("LABEL_DETECTION");
@@ -334,12 +335,11 @@ public class MainActivity extends AppCompatActivity {
                         e.getMessage());
             }
             List<String> data_list = new ArrayList<>();
-            data_list.add("failed");
+            data_list.add("Failed");
             return data_list;
         }
 
         protected void onPostExecute(List<String> result) {
-            MainActivity activity = mActivityWeakReference.get();
             setSpinner(result);
         }
     }
@@ -429,6 +429,7 @@ public class MainActivity extends AppCompatActivity {
                     setWikiUrl();
                     saveWiki.setVisibility(View.VISIBLE);
                 }
+                scrollView.scrollTo(0 ,0);
         });
     }
 
@@ -451,6 +452,7 @@ public class MainActivity extends AppCompatActivity {
             outState.putString("title", wiki.getTitle());
             outState.putString("content", wiki.getContent());
         } else {
+            //when I test, even I didn't put something in bundle, the bundle always not null, so I put a space instead of null to identify
             outState.putString("title", " ");
         }
         super.onSaveInstanceState(outState);
@@ -476,7 +478,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void setSpinner(List<String> result) {
         MainActivity activity = MainActivity.this;
-        if (activity != null && !activity.isFinishing()) {
+        if (!activity.isFinishing()) {
             ArrayAdapter<String> arr_adapter;
             arr_adapter= new ArrayAdapter<>(activity, R.layout.spinner_item, result);
             arr_adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -488,8 +490,8 @@ public class MainActivity extends AppCompatActivity {
                         wiki.setTitle((String)adapterView.getItemAtPosition(i));
                         contentTitle.setText(wiki.getTitle());
                         line.setVisibility(View.VISIBLE);
-                        checkButtonStatus();
                         onButtonGet(wiki.getTitle());
+                        checkButtonStatus();
                         saveWiki.setVisibility(View.VISIBLE);
                     });
                 }
@@ -505,10 +507,6 @@ public class MainActivity extends AppCompatActivity {
         String value = "<a href=\"https://en.m.wikipedia.org/wiki/" + wiki.getTitle() +"\">More Details...</a>";
         wikiUrl.setText(Html.fromHtml(value));
         wikiUrl.setMovementMethod(LinkMovementMethod.getInstance());
-
-    }
-
-    public void test() {
     }
 
 }
